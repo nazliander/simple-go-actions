@@ -1,0 +1,48 @@
+name: Test and Build
+on: push
+permissions:
+  contents: read
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.18.x
+      - uses: actions/checkout@v3
+      # Linting test
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: latest
+      # Go tests with coverage
+      - name: go-test
+        run: go test -cover
+  build:
+    name: build
+    needs: [test]
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: gcr.io/${{ secrets.GC_PROJECT_ID }}/${{ secrets.GC_APP_NAME }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: build-docker-image
+        run: docker build . -t $IMAGE_NAME
+  publish:
+    name: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/initial-commit-2'
+    needs: [build]
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: gcr.io/${{ secrets.GC_PROJECT_ID }}/${{ secrets.GC_APP_NAME }}
+    steps:
+      - name: login
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+          project_id: ${{ secrets.GC_PROJECT_ID }}
+          service_account_email: ${{ secrets.GC_EMAIL }}
+          service_account_key: ${{ secrets.GC_KEY }}
+      - name: push-image
+        run: docker push $IMAGE_NAME
