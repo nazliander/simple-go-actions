@@ -1,4 +1,4 @@
-name: Test and Build
+name: Test -> Build -> Publish
 on: push
 permissions:
   contents: read
@@ -23,26 +23,58 @@ jobs:
     name: build
     needs: [test]
     runs-on: ubuntu-latest
-    env:
-      IMAGE_NAME: gcr.io/${{ secrets.GC_PROJECT_ID }}/${{ secrets.GC_APP_NAME }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      - name: build-docker-image
-        run: docker build . -t $IMAGE_NAME
+      - uses: actions/checkout@v3
+      - name: setup-buildx
+        uses: docker/setup-buildx-action@v1
+      - name: build artifact
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: ${{ secrets.TAG_NAME }}
+          outputs: type=docker,dest=/tmp/shared-image.tar
+      - name: upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ secrets.TAG_NAME }}
+          path: /tmp/shared-image.tar
+
   publish:
     name: publish
-    if: github.event_name == 'push' && github.ref == 'refs/heads/initial-commit-2'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [build]
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: gcr.io/${{ secrets.GC_PROJECT_ID }}/${{ secrets.GC_APP_NAME }}
+      REGION: ${{ secrets.REGION }}
     steps:
       - name: login
-        uses: google-github-actions/setup-gcloud@v0
+        uses: "google-github-actions/auth@v0"
         with:
-          project_id: ${{ secrets.GC_PROJECT_ID }}
-          service_account_email: ${{ secrets.GC_EMAIL }}
-          service_account_key: ${{ secrets.GC_KEY }}
-      - name: push-image
-        run: docker push $IMAGE_NAME
+          credentials_json: "${{ secrets.GC_KEY }}"
+      - name: "set up cloud sdk"
+        uses: "google-github-actions/setup-gcloud@v0"
+      - name: configure docker login
+        run: gcloud auth configure-docker
+      - name: setup-buildx
+        uses: docker/setup-buildx-action@v1
+      - name: download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ secrets.TAG_NAME }}
+          path: /tmp
+      - name: load image
+        run: |
+          docker load --input /tmp/shared-image.tar
+          docker image ls -a
+      - name: tag and push image
+        run: |
+          docker tag ${{ secrets.TAG_NAME }} $IMAGE_NAME
+          docker push $IMAGE_NAME
+      - name: "update cloud run to use the latest image"
+        run: |
+          gcloud run deploy ${{ secrets.GC_APP_NAME }} \
+          --region $REGION \
+          --image $IMAGE_NAME \
+          --platform managed
