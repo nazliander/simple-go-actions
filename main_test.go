@@ -65,7 +65,10 @@ func TestForecast(t *testing.T) {
 			}
 
 			actual := Response{}
-			json.Unmarshal([]byte(rr.Body.String()), &actual)
+			err := json.Unmarshal([]byte(rr.Body.String()), &actual)
+			if err != nil {
+				t.Errorf("Testing error, check JSON Unmarshal method.")
+			}
 			if math.Abs(tc.expected-actual.Result) > epsilon {
 				t.Errorf("Expected %f, got %f", tc.expected, actual.Result)
 			}

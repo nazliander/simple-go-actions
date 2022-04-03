@@ -24,7 +24,11 @@ func forecast(w http.ResponseWriter, r *http.Request) {
 		Result: predictor.MovingAverage(parsedStrs),
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	encode_err := json.NewEncoder(w).Encode(resp)
+	if encode_err != nil {
+		http.Error(w, encode_err.Error(), http.StatusBadRequest)
+		return
+	}
 }
 
 func handleRequests() {
