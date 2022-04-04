@@ -49,6 +49,7 @@ jobs:
       IMAGE_NAME: gcr.io/${{ secrets.GC_PROJECT_ID }}/${{ secrets.GC_APP_NAME }}
       REGION: ${{ secrets.REGION }}
     steps:
+      - uses: actions/checkout@v3
       - name: login
         uses: "google-github-actions/auth@v0"
         with:
