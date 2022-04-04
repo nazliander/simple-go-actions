@@ -10,7 +10,8 @@ import (
 )
 
 type Response struct {
-	Result float64 `json:"result"`
+	Result  float64 `json:"result"`
+	Message string  `json:"message"`
 }
 
 func forecast(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +22,8 @@ func forecast(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := Response{
-		Result: predictor.MovingAverage(parsedStrs),
+		Result:  predictor.MovingAverage(parsedStrs),
+		Message: "hi",
 	}
 	w.Header().Set("Content-Type", "application/json")
 	encode_err := json.NewEncoder(w).Encode(resp)
