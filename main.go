@@ -23,7 +23,7 @@ func forecast(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := Response{
 		Result:  predictor.MovingAverage(parsedStrs),
-		Message: "hi",
+		Message: "data-team",
 	}
 	w.Header().Set("Content-Type", "application/json")
 	encode_err := json.NewEncoder(w).Encode(resp)
